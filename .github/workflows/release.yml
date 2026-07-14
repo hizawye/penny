@@ -4,9 +4,18 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create (e.g. v0.1.0)"
+        required: true
+        default: "v0.1.0"
 
 permissions:
   contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   build:
@@ -54,7 +63,7 @@ jobs:
           mkdir -p dist
           cp target/release/${{ matrix.binary }} dist/
           cp README.md LICENSE dist/
-          tar -czf penny-${{ github.ref_name }}-${{ matrix.name }}.tar.gz -C dist .
+          tar -czf penny-$RELEASE_TAG-${{ matrix.name }}.tar.gz -C dist .
 
       - name: Package (zip)
         if: matrix.archive == 'zip'
@@ -63,12 +72,13 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item target/release/${{ matrix.binary }} dist/
           Copy-Item README.md,LICENSE dist/
-          Compress-Archive -Path dist/* -DestinationPath "penny-${{ github.ref_name }}-${{ matrix.name }}.zip"
+          Compress-Archive -Path dist/* -DestinationPath "penny-$env:RELEASE_TAG-${{ matrix.name }}.zip"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           generate_release_notes: true
           files: |
-            penny-${{ github.ref_name }}-${{ matrix.name }}.tar.gz
-            penny-${{ github.ref_name }}-${{ matrix.name }}.zip
+            penny-${{ env.RELEASE_TAG }}-${{ matrix.name }}.tar.gz
+            penny-${{ env.RELEASE_TAG }}-${{ matrix.name }}.zip

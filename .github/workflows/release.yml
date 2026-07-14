@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: x86_64-linux
+            binary: penny
+            archive: tar.gz
+          - os: windows-latest
+            name: x86_64-windows
+            binary: penny.exe
+            archive: zip
+          - os: macos-latest
+            name: aarch64-macos
+            binary: penny
+            archive: tar.gz
+          - os: macos-13
+            name: x86_64-macos
+            binary: penny
+            archive: tar.gz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev \
+            libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Package (tar.gz)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          mkdir -p dist
+          cp target/release/${{ matrix.binary }} dist/
+          cp README.md LICENSE dist/
+          tar -czf penny-${{ github.ref_name }}-${{ matrix.name }}.tar.gz -C dist .
+
+      - name: Package (zip)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target/release/${{ matrix.binary }} dist/
+          Copy-Item README.md,LICENSE dist/
+          Compress-Archive -Path dist/* -DestinationPath "penny-${{ github.ref_name }}-${{ matrix.name }}.zip"
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            penny-${{ github.ref_name }}-${{ matrix.name }}.tar.gz
+            penny-${{ github.ref_name }}-${{ matrix.name }}.zip

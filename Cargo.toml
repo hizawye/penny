@@ -1,0 +1,22 @@
+[package]
+name = "penny"
+version = "0.1.0"
+edition = "2021"
+description = "Draw over any app while streaming — pen, highlighter, arrows, text, eraser, laser pointer. Hotkeys to toggle draw mode and click-through instantly. Works with OBS, Discord, Zoom, Teams."
+license = "MIT"
+repository = "https://github.com/hizawye/penny"
+
+[dependencies]
+eframe = { version = "0.31", default-features = false, features = ["glow", "default_fonts", "x11", "wayland"] }
+egui = "0.31"
+global-hotkey = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "6"
+image = { version = "0.25", default-features = false, features = ["png"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true

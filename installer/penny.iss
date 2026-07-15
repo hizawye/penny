@@ -26,6 +26,9 @@ AppUpdatesURL={#AppURL}/releases
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
+; Resolve all relative paths (LicenseFile, [Files] Source, OutputDir) from the
+; repo root — one level up from this script in installer/ — not the script dir.
+SourceDir=..
 LicenseFile=dist\LICENSE
 OutputDir=installer\Output
 OutputBaseFilename=penny-{#AppVersion}-x86_64-windows-setup

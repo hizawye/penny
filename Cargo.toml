@@ -1,6 +1,6 @@
 [package]
 name = "penny"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Draw over any app while streaming — pen, highlighter, arrows, text, eraser, laser pointer. Hotkeys to toggle draw mode and click-through instantly. Works with OBS, Discord, Zoom, Teams."
 license = "MIT"

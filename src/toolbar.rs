@@ -25,9 +25,33 @@ pub fn show(app: &mut PennyApp, ctx: &egui::Context) {
                             .color(Color32::from_gray(180))
                             .small(),
                     );
-                    ui.label(RichText::new("Ctrl+Shift+D to draw").small().weak());
+                    // Point at whichever escape actually works on this machine.
+                    let hint = if app.draw_hotkey_available() {
+                        "Ctrl+Shift+D to draw"
+                    } else if app.has_tray() {
+                        "tray menu → Toggle draw"
+                    } else {
+                        "restart to draw"
+                    };
+                    ui.label(RichText::new(hint).small().weak());
                 });
                 return;
+            }
+
+            // The draw toggle is the only hotkey that escapes click-through.
+            // If it failed to register, warn before the user gets stranded.
+            if !app.draw_hotkey_available() {
+                let msg = if app.has_tray() {
+                    "⚠ Ctrl+Shift+D unavailable — use the tray menu to leave click-through"
+                } else {
+                    "⚠ Ctrl+Shift+D unavailable — no way back from click-through"
+                };
+                ui.label(
+                    RichText::new(msg)
+                        .small()
+                        .color(Color32::from_rgb(0xff, 0xb3, 0x4d)),
+                );
+                ui.add_space(4.0);
             }
 
             // Tools
@@ -125,9 +149,17 @@ pub fn show(app: &mut PennyApp, ctx: &egui::Context) {
                 {
                     app.request_export(ctx);
                 }
+                // Only offer click-through when there's a way back out of it,
+                // so the toolbar button can never strand the user.
+                let escapable = app.draw_hotkey_available() || app.has_tray();
+                let hint = if escapable {
+                    "Click-through: pass clicks to the app underneath (Ctrl+Shift+D)"
+                } else {
+                    "Click-through unavailable: no hotkey or tray to return from it"
+                };
                 if ui
-                    .button(ph::HAND_POINTING)
-                    .on_hover_text("Click-through: pass clicks to the app underneath (Ctrl+Shift+D)")
+                    .add_enabled(escapable, egui::Button::new(ph::HAND_POINTING))
+                    .on_hover_text(hint)
                     .clicked()
                 {
                     app.set_click_through(ctx, true);

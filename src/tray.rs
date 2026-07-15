@@ -13,6 +13,7 @@ pub use stub::Tray;
 /// `None`.
 pub enum TrayAction {
     None,
+    ToggleDraw,
     ToggleOverlay,
     Quit,
 }
@@ -29,6 +30,7 @@ mod imp {
     pub struct Tray {
         // Held for the process lifetime; dropping it removes the icon.
         _tray: TrayIcon,
+        draw_id: MenuId,
         toggle_id: MenuId,
         quit_id: MenuId,
     }
@@ -36,10 +38,16 @@ mod imp {
     impl Tray {
         /// Builds the tray icon, or `None` if the platform refuses it.
         pub fn new() -> Option<Self> {
+            // A hotkey-independent escape from click-through mode: the tray
+            // menu keeps working even while the window passes the mouse
+            // through, so the user is never stranded if Ctrl+Shift+D is
+            // unavailable.
+            let draw = MenuItem::new("Toggle draw / click-through", true, None);
             let toggle = MenuItem::new("Show / hide overlay", true, None);
             let quit = MenuItem::new("Quit Penny", true, None);
 
             let menu = Menu::new();
+            menu.append(&draw).ok()?;
             menu.append(&toggle).ok()?;
             menu.append(&PredefinedMenuItem::separator()).ok()?;
             menu.append(&quit).ok()?;
@@ -53,6 +61,7 @@ mod imp {
 
             Some(Self {
                 _tray: tray,
+                draw_id: draw.id().clone(),
                 toggle_id: toggle.id().clone(),
                 quit_id: quit.id().clone(),
             })
@@ -61,6 +70,9 @@ mod imp {
         /// Drains pending tray-menu clicks. Call once per frame.
         pub fn poll(&self) -> TrayAction {
             while let Ok(event) = MenuEvent::receiver().try_recv() {
+                if event.id == self.draw_id {
+                    return TrayAction::ToggleDraw;
+                }
                 if event.id == self.toggle_id {
                     return TrayAction::ToggleOverlay;
                 }

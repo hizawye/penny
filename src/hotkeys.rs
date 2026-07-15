@@ -18,41 +18,55 @@ pub enum GlobalAction {
 pub struct Hotkeys {
     /// Kept alive for the lifetime of the app; dropping it unregisters the hotkeys.
     _manager: Option<GlobalHotKeyManager>,
-    toggle_draw: u32,
-    toggle_visibility: u32,
-    clear_all: u32,
+    /// `None` if this shortcut could not be claimed (e.g. another app owns it).
+    toggle_draw: Option<u32>,
+    toggle_visibility: Option<u32>,
+    clear_all: Option<u32>,
 }
 
 impl Hotkeys {
     /// Registers global hotkeys. Failure is non-fatal (e.g. Wayland without
     /// a global-shortcuts portal): the overlay still works, just without
     /// system-wide shortcuts.
+    ///
+    /// Each shortcut is registered independently so that one conflict — say
+    /// another running app already owning Ctrl+Shift+D — cannot knock out the
+    /// others. This matters most for `toggle_draw`, the only hotkey that can
+    /// escape click-through mode.
     pub fn register() -> Self {
         let mods = Modifiers::CONTROL | Modifiers::SHIFT;
-        let toggle_draw = HotKey::new(Some(mods), Code::KeyD);
-        let toggle_visibility = HotKey::new(Some(mods), Code::KeyH);
-        let clear_all = HotKey::new(Some(mods), Code::KeyX);
+        let manager = GlobalHotKeyManager::new().ok();
 
-        let ids = (toggle_draw.id(), toggle_visibility.id(), clear_all.id());
+        let register_one = |code: Code| -> Option<u32> {
+            let manager = manager.as_ref()?;
+            let hotkey = HotKey::new(Some(mods), code);
+            manager.register(hotkey).ok().map(|_| hotkey.id())
+        };
 
-        let manager = GlobalHotKeyManager::new().ok().and_then(|m| {
-            m.register_all(&[toggle_draw, toggle_visibility, clear_all])
-                .ok()
-                .map(|_| m)
-        });
-        if manager.is_none() {
+        let toggle_draw = register_one(Code::KeyD);
+        let toggle_visibility = register_one(Code::KeyH);
+        let clear_all = register_one(Code::KeyX);
+
+        if toggle_draw.is_none() {
             eprintln!(
-                "penny: global hotkeys unavailable on this system; \
-                 use the toolbar to toggle draw mode"
+                "penny: could not register Ctrl+Shift+D (draw toggle); \
+                 use the tray menu to leave click-through mode"
             );
         }
 
         Self {
             _manager: manager,
-            toggle_draw: ids.0,
-            toggle_visibility: ids.1,
-            clear_all: ids.2,
+            toggle_draw,
+            toggle_visibility,
+            clear_all,
         }
+    }
+
+    /// Whether the draw-mode toggle (Ctrl+Shift+D) is armed. When false, the
+    /// hotkey cannot rescue the user from click-through mode, so the UI must
+    /// offer another way out.
+    pub fn toggle_draw_available(&self) -> bool {
+        self.toggle_draw.is_some()
     }
 
     /// Drains pending hotkey presses.
@@ -62,11 +76,11 @@ impl Hotkeys {
             if event.state != global_hotkey::HotKeyState::Pressed {
                 continue;
             }
-            if event.id == self.toggle_draw {
+            if Some(event.id) == self.toggle_draw {
                 actions.push(GlobalAction::ToggleDraw);
-            } else if event.id == self.toggle_visibility {
+            } else if Some(event.id) == self.toggle_visibility {
                 actions.push(GlobalAction::ToggleVisibility);
-            } else if event.id == self.clear_all {
+            } else if Some(event.id) == self.clear_all {
                 actions.push(GlobalAction::ClearAll);
             }
         }

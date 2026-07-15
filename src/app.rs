@@ -126,6 +126,17 @@ impl PennyApp {
         self.settings_dirty = true;
     }
 
+    /// Whether the Ctrl+Shift+D draw toggle is armed. When false the toolbar
+    /// warns that the tray menu is the way out of click-through mode.
+    pub fn draw_hotkey_available(&self) -> bool {
+        self.hotkeys.toggle_draw_available()
+    }
+
+    /// Whether a system tray exists to fall back on (Windows/macOS).
+    pub fn has_tray(&self) -> bool {
+        self.tray.is_some()
+    }
+
     /// Effective stroke color for the current tool (highlighter is translucent).
     fn stroke_color(&self) -> Color32 {
         let c = self.settings.color();
@@ -167,6 +178,10 @@ impl PennyApp {
         self.overlay_hidden = !self.overlay_hidden;
         if self.overlay_hidden {
             self.set_click_through(ctx, true);
+        } else {
+            // Coming back into view: land in an interactive state so the
+            // toolbar is usable, rather than silently staying click-through.
+            self.set_click_through(ctx, false);
         }
     }
 
@@ -176,6 +191,15 @@ impl PennyApp {
         // before we mutate `self`.
         let action = self.tray.as_ref().map(|t| t.poll());
         match action {
+            Some(crate::tray::TrayAction::ToggleDraw) => {
+                // If the overlay is hidden, showing it is the sensible first
+                // step; otherwise flip click-through.
+                if self.overlay_hidden {
+                    self.toggle_overlay_hidden(ctx);
+                } else {
+                    self.set_click_through(ctx, !self.click_through);
+                }
+            }
             Some(crate::tray::TrayAction::ToggleOverlay) => self.toggle_overlay_hidden(ctx),
             Some(crate::tray::TrayAction::Quit) => ctx.send_viewport_cmd(ViewportCommand::Close),
             _ => {}

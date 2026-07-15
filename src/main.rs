@@ -10,6 +10,7 @@ mod app;
 mod hotkeys;
 mod model;
 mod toolbar;
+mod tray;
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {

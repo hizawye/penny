@@ -74,6 +74,19 @@ jobs:
           Copy-Item README.md,LICENSE dist/
           Compress-Archive -Path dist/* -DestinationPath "penny-$env:RELEASE_TAG-${{ matrix.name }}.zip"
 
+      - name: Build Windows installer
+        if: matrix.name == 'x86_64-windows'
+        shell: pwsh
+        run: |
+          $ver = "$env:RELEASE_TAG" -replace '^v', ''
+          # Inno Setup ships on the windows-latest image; install it if absent.
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc "/DAppVersion=$ver" installer\penny.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
+
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
@@ -82,3 +95,4 @@ jobs:
           files: |
             penny-${{ env.RELEASE_TAG }}-${{ matrix.name }}.tar.gz
             penny-${{ env.RELEASE_TAG }}-${{ matrix.name }}.zip
+            installer/Output/*.exe

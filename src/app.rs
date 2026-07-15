@@ -39,10 +39,18 @@ pub struct PennyApp {
     settings_dirty: bool,
     /// Shift state captured each frame, used by live snap previews.
     shift_down: bool,
+    /// System-tray icon + menu (Windows/macOS); `None` on Linux or if it fails.
+    tray: Option<crate::tray::Tray>,
 }
 
 impl PennyApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Bundle the Phosphor icon font so toolbar glyphs render on every
+        // platform (the default egui fonts lack most of the icons we use).
+        let mut fonts = egui::FontDefinitions::default();
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+        cc.egui_ctx.set_fonts(fonts);
+
         Self {
             settings: Settings::load(),
             marks: Vec::new(),
@@ -60,6 +68,7 @@ impl PennyApp {
             last_export: None,
             settings_dirty: false,
             shift_down: false,
+            tray: crate::tray::Tray::new(),
         }
     }
 
@@ -152,6 +161,27 @@ impl PennyApp {
     // Input
     // ------------------------------------------------------------------
 
+    /// Hide or show the overlay. While hidden it stops painting and passes
+    /// clicks through so the app underneath stays fully usable.
+    pub fn toggle_overlay_hidden(&mut self, ctx: &egui::Context) {
+        self.overlay_hidden = !self.overlay_hidden;
+        if self.overlay_hidden {
+            self.set_click_through(ctx, true);
+        }
+    }
+
+    /// Handles tray-menu picks. Returns nothing; acts on `self`/viewport.
+    fn handle_tray(&mut self, ctx: &egui::Context) {
+        // Poll into a local first so the immutable borrow of `self.tray` ends
+        // before we mutate `self`.
+        let action = self.tray.as_ref().map(|t| t.poll());
+        match action {
+            Some(crate::tray::TrayAction::ToggleOverlay) => self.toggle_overlay_hidden(ctx),
+            Some(crate::tray::TrayAction::Quit) => ctx.send_viewport_cmd(ViewportCommand::Close),
+            _ => {}
+        }
+    }
+
     fn handle_global_hotkeys(&mut self, ctx: &egui::Context) {
         for action in self.hotkeys.poll() {
             match action {
@@ -159,13 +189,7 @@ impl PennyApp {
                     let on = !self.click_through;
                     self.set_click_through(ctx, on);
                 }
-                GlobalAction::ToggleVisibility => {
-                    self.overlay_hidden = !self.overlay_hidden;
-                    // Keep receiving events; just stop painting and pass clicks through.
-                    if self.overlay_hidden {
-                        self.set_click_through(ctx, true);
-                    }
-                }
+                GlobalAction::ToggleVisibility => self.toggle_overlay_hidden(ctx),
                 GlobalAction::ClearAll => self.clear_all(),
             }
         }
@@ -563,6 +587,13 @@ impl PennyApp {
         }
         if let Some(size) = ctx.input(|i| i.viewport().monitor_size) {
             if size.x > 1.0 && size.y > 1.0 {
+                // Stay 1px shy of the exact monitor bounds. A borderless window
+                // that covers the whole monitor pixel-for-pixel trips Windows'
+                // DWM "fullscreen optimization", which bypasses the desktop
+                // compositor and kills per-pixel alpha — the transparent overlay
+                // then renders as opaque black. Shrinking by 1px keeps it
+                // composited so transparency works.
+                let size = egui::vec2(size.x, size.y - 1.0);
                 ctx.send_viewport_cmd(ViewportCommand::OuterPosition(Pos2::ZERO));
                 ctx.send_viewport_cmd(ViewportCommand::InnerSize(size));
                 self.sized_to_monitor = true;
@@ -608,6 +639,7 @@ impl eframe::App for PennyApp {
         self.shift_down = ctx.input(|i| i.modifiers.shift);
 
         self.ensure_fullscreen_size(ctx);
+        self.handle_tray(ctx);
         self.handle_global_hotkeys(ctx);
         self.handle_screenshots(ctx);
         self.prune(now);
@@ -670,13 +702,6 @@ impl eframe::App for PennyApp {
                 }
             }
 
-            // Border hint: green when drawing, subtle when click-through.
-            let border = if self.click_through {
-                Stroke::new(1.0, Color32::from_white_alpha(20))
-            } else {
-                Stroke::new(2.0, Color32::from_rgba_unmultiplied(0x34, 0xc7, 0x59, 180))
-            };
-            painter.rect_stroke(rect.shrink(1.0), 0.0, border, egui::StrokeKind::Inside);
         });
 
         if !self.overlay_hidden {

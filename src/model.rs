@@ -31,17 +31,19 @@ impl Tool {
         }
     }
 
+    /// Phosphor icon glyph for this tool (see `egui_phosphor::regular`).
     pub fn icon(self) -> &'static str {
+        use egui_phosphor::regular as ph;
         match self {
-            Tool::Pen => "✏",
-            Tool::Highlighter => "🖊",
-            Tool::Line => "╱",
-            Tool::Arrow => "➤",
-            Tool::Rect => "▭",
-            Tool::Ellipse => "◯",
-            Tool::Text => "T",
-            Tool::Eraser => "⌫",
-            Tool::Laser => "●",
+            Tool::Pen => ph::PENCIL_SIMPLE,
+            Tool::Highlighter => ph::HIGHLIGHTER,
+            Tool::Line => ph::LINE_SEGMENT,
+            Tool::Arrow => ph::ARROW_UP_RIGHT,
+            Tool::Rect => ph::RECTANGLE,
+            Tool::Ellipse => ph::CIRCLE,
+            Tool::Text => ph::TEXT_T,
+            Tool::Eraser => ph::ERASER,
+            Tool::Laser => ph::DOT,
         }
     }
 

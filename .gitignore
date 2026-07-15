@@ -1,1 +1,8 @@
 /target
+
+# Build/packaging artifacts (produced by CI on release)
+/dist
+/installer/Output
+penny-*.zip
+penny-*.tar.gz
+penny-*-setup.exe

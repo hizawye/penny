@@ -2,6 +2,7 @@
 //! click-through toggle, undo/redo/clear/export.
 
 use egui::{Color32, RichText};
+use egui_phosphor::regular as ph;
 
 use crate::app::PennyApp;
 use crate::model::{Tool, PALETTE};
@@ -20,7 +21,7 @@ pub fn show(app: &mut PennyApp, ctx: &egui::Context) {
             if app.click_through {
                 ui.horizontal(|ui| {
                     ui.label(
-                        RichText::new("👆 click-through")
+                        RichText::new(format!("{} click-through", ph::HAND_POINTING))
                             .color(Color32::from_gray(180))
                             .small(),
                     );
@@ -108,24 +109,24 @@ pub fn show(app: &mut PennyApp, ctx: &egui::Context) {
 
             // Actions
             ui.horizontal(|ui| {
-                if ui.button("↩").on_hover_text("Undo (Ctrl+Z)").clicked() {
+                if ui.button(ph::ARROW_ARC_LEFT).on_hover_text("Undo (Ctrl+Z)").clicked() {
                     app.undo();
                 }
-                if ui.button("↪").on_hover_text("Redo (Ctrl+Shift+Z)").clicked() {
+                if ui.button(ph::ARROW_ARC_RIGHT).on_hover_text("Redo (Ctrl+Shift+Z)").clicked() {
                     app.redo();
                 }
-                if ui.button("🗑").on_hover_text("Clear all (Del / Ctrl+Shift+X)").clicked() {
+                if ui.button(ph::TRASH).on_hover_text("Clear all (Del / Ctrl+Shift+X)").clicked() {
                     app.clear_all();
                 }
                 if ui
-                    .button("📷")
+                    .button(ph::CAMERA)
                     .on_hover_text("Export annotated screenshot (Ctrl+S)")
                     .clicked()
                 {
                     app.request_export(ctx);
                 }
                 if ui
-                    .button("👆")
+                    .button(ph::HAND_POINTING)
                     .on_hover_text("Click-through: pass clicks to the app underneath (Ctrl+Shift+D)")
                     .clicked()
                 {

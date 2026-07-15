@@ -35,6 +35,9 @@ OutputBaseFilename=penny-{#AppVersion}-x86_64-windows-setup
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+; Branding: installer executable icon and Add/Remove Programs icon.
+SetupIconFile=assets\penny.ico
+UninstallDisplayIcon={app}\{#AppExeName}
 ; Penny is a 64-bit app; only allow install on 64-bit Windows.
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/penny.png" alt="Penny logo" width="128" height="128">
+</p>
+
 # Penny
 
 Draw over any app while streaming — pen, highlighter, arrows, text, eraser, laser pointer. Hotkeys to toggle draw mode and click-through instantly. Works with OBS, Discord, Zoom, Teams. Cross-platform, built in Rust.
